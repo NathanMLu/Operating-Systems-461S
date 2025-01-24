@@ -5,7 +5,7 @@
 #include "process.h"
 #include "signals.h"
 
-int main() {
+int main(void) {
     char *input;
 
     while (1) {
@@ -23,11 +23,7 @@ int main() {
         char **tokens = parse_input(input);
         if (tokens == NULL) {
             perror("parse_input failed");
-            exit(EXIT_FAILURE); // Exit if tokenization fails
-        }
-
-        for (int i = 0; tokens[i] != NULL; i++) {
-            printf("Token[%d]: %s\n", i, tokens[i]);
+            exit(EXIT_FAILURE);
         }
 
         if (tokens[0] != NULL) {

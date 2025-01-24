@@ -17,6 +17,11 @@ char **parse_input(const char *input) {
         exit(EXIT_FAILURE);
     }
 
+    const size_t len = strlen(input_copy); // remove newline character if present
+    if (len > 0 && input_copy[len - 1] == '\n') {
+        input_copy[len - 1] = '\0';
+    }
+
     char *token = strtok(input_copy, " "); // get the first token
     int i = 0;
 
