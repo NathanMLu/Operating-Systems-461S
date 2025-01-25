@@ -13,26 +13,52 @@ int main(void) {
         fflush(stdout);
 
         size_t len = 0;
-        input = NULL; // we don't need to allocate because getline will allocate
+        input = NULL; // getline will allocate memory for input
         if (getline(&input, &len, stdin) == -1) {
             printf("Exiting yash.\n");
             free(input);
             break;
         }
 
-        char **tokens = parse_input(input);
-        if (tokens == NULL) {
+        Command *cmd = parse_input(input);
+        if (cmd == NULL) {
             perror("parse_input failed");
             exit(EXIT_FAILURE);
         }
 
-        if (tokens[0] != NULL) {
-            execute_command(tokens);
+        // printf("Command: ");
+        // for (int i = 0; cmd->argv[i] != NULL; i++) {
+        //     printf("Token[%d]: %s\n", i, cmd->argv[i]);
+        // }
+        // printf("\n");
+        //
+        // if (cmd->in_file) {
+        //     printf("Input Redirection: %s\n", cmd->in_file);
+        // }
+        // if (cmd->out_file) {
+        //     printf("Output Redirection: %s\n", cmd->out_file);
+        // }
+        // if (cmd->err_file) {
+        //     printf("Error Redirection: %s\n", cmd->err_file);
+        // }
+        // if (cmd->is_background) {
+        //     printf("Background: Yes\n");
+        // } else {
+        //     printf("Background: No\n");
+        // }
+        // if (cmd->is_piped) {
+        //     printf("Pipe: Yes\n");
+        // } else {
+        //     printf("Pipe: No\n");
+        // }
+
+        if (cmd->argv[0] != NULL) {
+            execute_command(cmd);
         } else {
             fprintf(stderr, "No command entered.\n");
         }
 
-        free_parsed_input(tokens);
+        free_command(cmd);
         free(input);
     }
 

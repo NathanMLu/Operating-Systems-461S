@@ -3,15 +3,28 @@
 #include <string.h>
 #include <parser.h>
 
-char **parse_input(const char *input) {
+Command *parse_input(const char *input) {
     const int buffer_size = 64;
 
-    char **tokens = (char **) malloc(buffer_size * sizeof(char *));
-    if (!tokens) {
+    Command *command = (Command *) malloc(sizeof(Command));
+    if (!command) {
         perror("malloc");
         exit(EXIT_FAILURE);
     }
-    char *input_copy = strdup(input); // copy the input since original is const
+
+    command->argv = malloc(buffer_size * sizeof(char *));
+    if (!command->argv) {
+        perror("malloc");
+        exit(EXIT_FAILURE);
+    }
+
+    command->in_file = NULL;
+    command->out_file = NULL;
+    command->err_file = NULL;
+    command->is_background = 0;
+    command->is_piped = 0;
+
+    char *input_copy = strdup(input); // copy the input string
     if (!input_copy) {
         perror("strdup");
         exit(EXIT_FAILURE);
@@ -22,25 +35,55 @@ char **parse_input(const char *input) {
         input_copy[len - 1] = '\0';
     }
 
-    char *token = strtok(input_copy, " "); // get the first token
+    char *token = strtok(input_copy, " ");
     int i = 0;
-
     while (token != NULL) {
-        tokens[i] = strdup(token);
-        if (!tokens[i]) break;
+        if (strcmp(token, "<") == 0) { // input redirection
+            token = strtok(NULL, " ");
+            if (!token) {
+                fprintf(stderr, "yash: missing input file after '<'\n");
+                exit(EXIT_FAILURE);
+            }
+            command->in_file = strdup(token);
+        } else if (strcmp(token, ">") == 0) { // output redirection
+            token = strtok(NULL, " ");
+            if (!token) {
+                fprintf(stderr, "yash: missing output file after '>'\n");
+                exit(EXIT_FAILURE);
+            }
+            command->out_file = strdup(token);
+        } else if (strcmp(token, "2>") == 0) { // error redirection
+            token = strtok(NULL, " ");
+            if (!token) {
+                fprintf(stderr, "yash: missing error file after '2>'\n");
+                exit(EXIT_FAILURE);
+            }
+            command->err_file = strdup(token);
+        } else if (strcmp(token, "&") == 0) { // background process
+            command->is_background = 1;
+        } else if (strcmp(token, "|") == 0) { // piped process
+            command->is_piped = 1;
+        } else { // normal command
+            command->argv[i] = strdup(token);
+            i++;
+        }
 
         token = strtok(NULL, " ");
-        i++;
     }
-    tokens[i] = NULL;
 
-    free(input_copy); // free the copy, we only needed it for tokenization
-    return tokens;
+    command->argv[i] = NULL; // need to null terminate at the end
+    free(input_copy);
+
+    return command;
 }
 
-void free_parsed_input(char **tokens) {
-    for (int i = 0; tokens[i] != NULL; i++) {
-        free(tokens[i]);
+void free_command(Command *command) {
+    for (int i = 0; command->argv[i] != NULL; i++) {
+        free(command->argv[i]);
     }
-    free(tokens);
+    free(command->argv);
+    free(command->in_file);
+    free(command->out_file);
+    free(command->err_file);
+    free(command);
 }
