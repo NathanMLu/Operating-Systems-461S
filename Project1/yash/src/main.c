@@ -5,8 +5,36 @@
 #include "process.h"
 #include "signals.h"
 
+void debug_command(const Command *cmd) {
+    if (!cmd) return;
+
+    printf("Command:\n");
+    for (int i = 0; cmd->argv[i] != NULL; i++) {
+        printf("  Token[%d]: %s\n", i, cmd->argv[i]);
+    }
+
+    if (cmd->in_file) {
+        printf("  Input Redirection: %s\n", cmd->in_file);
+    }
+    if (cmd->out_file) {
+        printf("  Output Redirection: %s\n", cmd->out_file);
+    }
+    if (cmd->err_file) {
+        printf("  Error Redirection: %s\n", cmd->err_file);
+    }
+    printf("  Background: %s\n", cmd->is_background ? "Yes" : "No");
+    printf("  Pipe: %s\n", cmd->is_piped ? "Yes" : "No");
+
+    if (cmd->is_piped && cmd->pipe_command) {
+        debug_command(cmd->pipe_command);
+    }
+}
+
+
 int main(void) {
     char *input;
+
+    setup_signal_handlers();
 
     while (1) {
         printf("# ");
@@ -26,31 +54,7 @@ int main(void) {
             exit(EXIT_FAILURE);
         }
 
-        // printf("Command: ");
-        // for (int i = 0; cmd->argv[i] != NULL; i++) {
-        //     printf("Token[%d]: %s\n", i, cmd->argv[i]);
-        // }
-        // printf("\n");
-        //
-        // if (cmd->in_file) {
-        //     printf("Input Redirection: %s\n", cmd->in_file);
-        // }
-        // if (cmd->out_file) {
-        //     printf("Output Redirection: %s\n", cmd->out_file);
-        // }
-        // if (cmd->err_file) {
-        //     printf("Error Redirection: %s\n", cmd->err_file);
-        // }
-        // if (cmd->is_background) {
-        //     printf("Background: Yes\n");
-        // } else {
-        //     printf("Background: No\n");
-        // }
-        // if (cmd->is_piped) {
-        //     printf("Pipe: Yes\n");
-        // } else {
-        //     printf("Pipe: No\n");
-        // }
+        // debug_command(cmd);
 
         if (cmd->argv[0] != NULL) {
             execute_command(cmd);

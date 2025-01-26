@@ -23,6 +23,7 @@ Command *parse_input(const char *input) {
     command->err_file = NULL;
     command->is_background = 0;
     command->is_piped = 0;
+    command->pipe_command = NULL;
 
     char *input_copy = strdup(input); // copy the input string
     if (!input_copy) {
@@ -33,6 +34,14 @@ Command *parse_input(const char *input) {
     const size_t len = strlen(input_copy); // remove newline character if present
     if (len > 0 && input_copy[len - 1] == '\n') {
         input_copy[len - 1] = '\0';
+    }
+
+    char *pipe_pos = strstr(input_copy, "|");
+    if (pipe_pos) {
+        *pipe_pos = '\0';
+
+        command->is_piped = 1;
+        command->pipe_command = parse_input(pipe_pos + 1); // Recursively parse right side
     }
 
     char *token = strtok(input_copy, " ");
@@ -61,8 +70,6 @@ Command *parse_input(const char *input) {
             command->err_file = strdup(token);
         } else if (strcmp(token, "&") == 0) { // background process
             command->is_background = 1;
-        } else if (strcmp(token, "|") == 0) { // piped process
-            command->is_piped = 1;
         } else { // normal command
             command->argv[i] = strdup(token);
             i++;
@@ -78,6 +85,10 @@ Command *parse_input(const char *input) {
 }
 
 void free_command(Command *command) {
+    if (command->pipe_command) {
+        free_command(command->pipe_command);
+    }
+
     for (int i = 0; command->argv[i] != NULL; i++) {
         free(command->argv[i]);
     }
@@ -87,3 +98,4 @@ void free_command(Command *command) {
     free(command->err_file);
     free(command);
 }
+
