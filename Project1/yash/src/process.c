@@ -47,8 +47,7 @@ void execute_command(Command *cmd) {
             setup_redirections(cmd);
 
             if (execvp(cmd->argv[0], cmd->argv) == -1) {
-                perror("execvp");
-                exit(EXIT_FAILURE);
+                _exit(EXIT_FAILURE);
             }
         }
 
@@ -75,8 +74,7 @@ void execute_command(Command *cmd) {
             setup_redirections(cmd);
 
             if (execvp(cmd->pipe_command->argv[0], cmd->pipe_command->argv) == -1) {
-                perror("execvp");
-                exit(EXIT_FAILURE);
+                _exit(EXIT_FAILURE);
             }
         }
 
@@ -115,8 +113,7 @@ void execute_command(Command *cmd) {
             signal(SIGTSTP, SIG_DFL);
 
             if (execvp(cmd->argv[0], cmd->argv) == -1) {
-                perror("execvp");
-                exit(EXIT_FAILURE);
+                _exit(EXIT_FAILURE);
             }
         } else {
             setpgid(pid, pid);
