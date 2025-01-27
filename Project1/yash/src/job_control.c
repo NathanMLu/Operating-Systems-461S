@@ -76,15 +76,20 @@ void remove_job(pid_t pgid) {
         if (job_table[i].pgid == pgid) {
             if (job_table[i].argv) {
                 for (int j = 0; job_table[i].argv[j] != NULL; j++) {
-                    free(job_table[i].argv[j]);
+                    if (job_table[i].argv[j]) {
+                        free(job_table[i].argv[j]);
+                        job_table[i].argv[j] = NULL;
+                    }
                 }
                 free(job_table[i].argv);
+                job_table[i].argv = NULL;
             }
-            job_table[i].job_id = 0; // mark as empty
+            job_table[i].job_id = 0;
             return;
         }
     }
 }
+
 
 void check_job_statuses(void) {
     for (int i = 0; i < MAX_JOBS; i++) {
@@ -109,6 +114,10 @@ void check_job_statuses(void) {
                     update_job_status(job_table[i].pgid, DONE);
                 }
             }
+        }
+
+        if (job_table[i].job_id != 0 && job_table[i].status == DONE) {
+            remove_job(job_table[i].pgid);
         }
     }
 }
@@ -147,7 +156,7 @@ void list_jobs(void) {
 
 Job *get_recent_job(int is_background) {
     for (int i = MAX_JOBS - 1; i >= 0; i--) {
-        if (job_table[i].job_id != 0 && job_table[i].is_background == is_background && job_table[i].status == STOPPED) {
+        if (job_table[i].job_id != 0 && (job_table[i].is_background == is_background || job_table[i].status == STOPPED)) {
             return &job_table[i];
         }
     }
@@ -158,7 +167,7 @@ int foreground_job(void) {
     Job *job = get_recent_job(1);
     if (job) {
         update_job_status(job->pgid, RUNNING);
-        printf("[%d] %-16s", job->job_id, "Running");
+        job->is_background = 0;
         for (int j = 0; job->argv[j] != NULL; j++) {
             printf("%s ", job->argv[j]);
         }
@@ -183,6 +192,7 @@ int background_job(void) {
     Job *job = get_recent_job(0);
     if (job) {
         update_job_status(job->pgid, RUNNING);
+        job->is_background = 1;
         printf("[%d] %-16s", job->job_id, "Running");
         for (int j = 0; job->argv[j] != NULL; j++) {
             printf("%s ", job->argv[j]);

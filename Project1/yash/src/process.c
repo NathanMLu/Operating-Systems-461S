@@ -33,12 +33,16 @@ void execute_command(Command *cmd) {
         }
 
         if (pid1 == 0) {
+            setpgid(0, 0); // set the child process group id to its pid
             close(pipe_fds[0]);
             if (dup2(pipe_fds[1], STDOUT_FILENO) == -1) { // set stdout to the pipe write end
                 perror("dup2");
                 exit(EXIT_FAILURE);
             }
             close(pipe_fds[1]);
+
+            signal(SIGINT, SIG_DFL);
+            signal(SIGTSTP, SIG_DFL);
 
             setup_redirections(cmd);
 
@@ -48,6 +52,8 @@ void execute_command(Command *cmd) {
             }
         }
 
+        setpgid(pid1, pid1);
+
         const pid_t pid2 = fork();
         if (pid2 == -1) {
             perror("fork (right pipe)");
@@ -55,12 +61,16 @@ void execute_command(Command *cmd) {
         }
 
         if (pid2 == 0) {
+            setpgid(0, pid1);
             close(pipe_fds[1]);
             if (dup2(pipe_fds[0], STDIN_FILENO) == -1) { // set stdin to the pipe read end
                 perror("dup2");
                 exit(EXIT_FAILURE);
             }
             close(pipe_fds[0]);
+
+            signal(SIGINT, SIG_DFL);
+            signal(SIGTSTP, SIG_DFL);
 
             setup_redirections(cmd);
 
@@ -70,12 +80,21 @@ void execute_command(Command *cmd) {
             }
         }
 
+        setpgid(pid2, pid1);
+
         close(pipe_fds[0]);
         close(pipe_fds[1]);
+
+        tcsetpgrp(STDIN_FILENO, pid1);
 
         int status1, status2;
         waitpid(pid1, &status1, WUNTRACED);
         waitpid(pid2, &status2, WUNTRACED);
+
+        tcsetpgrp(STDIN_FILENO, getpid());
+
+        signal(SIGINT, SIG_IGN);
+        signal(SIGTSTP, SIG_IGN);
 
         if (WIFSTOPPED(status1) || WIFSTOPPED(status2)) {
             // according to lab doc, we don't need to support ctrl z to put pipe into background
@@ -89,18 +108,33 @@ void execute_command(Command *cmd) {
         }
 
         if (pid == 0) {
+            setpgid(0, 0); // set the child process group id to its pid
             setup_redirections(cmd);
+
+            signal(SIGINT, SIG_DFL);
+            signal(SIGTSTP, SIG_DFL);
 
             if (execvp(cmd->argv[0], cmd->argv) == -1) {
                 perror("execvp");
                 exit(EXIT_FAILURE);
             }
         } else {
+            setpgid(pid, pid);
             if (cmd->is_background) {
                 add_job(pid, cmd->argv, 1);
             } else {
+                signal(SIGINT, SIG_DFL);
+                signal(SIGTSTP, SIG_DFL);
+
+                tcsetpgrp(STDIN_FILENO, pid);
+
                 int status;
                 waitpid(pid, &status, WUNTRACED);
+
+                tcsetpgrp(STDIN_FILENO, getpid());
+
+                signal(SIGINT, SIG_IGN);
+                signal(SIGTSTP, SIG_IGN);
 
                 if (WIFSTOPPED(status)) {
                     add_job(pid, cmd->argv, 0);
