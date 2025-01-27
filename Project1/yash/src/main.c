@@ -1,5 +1,8 @@
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
 #include "job_control.h"
 #include "parser.h"
 #include "process.h"
@@ -34,6 +37,7 @@ void debug_command(const Command *cmd) {
 int main(void) {
     char *input;
 
+    init_job_table();
     setup_signal_handlers();
 
     while (1) {
@@ -57,7 +61,20 @@ int main(void) {
         // debug_command(cmd);
 
         if (cmd->argv[0] != NULL) {
-            execute_command(cmd);
+            if (strcmp(cmd->argv[0], "jobs") == 0) {
+                check_job_statuses();
+                list_jobs();
+            } else if (strcmp(cmd->argv[0], "fg") == 0) {
+                if (!foreground_job()) {
+                    printf("yash: no jobs to foreground\n");
+                }
+            } else if (strcmp(cmd->argv[0], "bg") == 0) {
+                if (!background_job()) {
+                    printf("yash: no stopped jobs to background\n");
+                }
+            } else {
+                execute_command(cmd);
+            }
         } else {
             fprintf(stderr, "No command entered.\n");
         }

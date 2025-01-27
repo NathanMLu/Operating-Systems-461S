@@ -3,6 +3,7 @@
 #include <sys/wait.h>
 #include <process.h>
 #include <fcntl.h>
+#include <job_control.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -64,8 +65,14 @@ void execute_command(Command *cmd) {
 
         close(pipe_fds[0]);
         close(pipe_fds[1]);
-        waitpid(pid1, NULL, 0);
-        waitpid(pid2, NULL, 0);
+
+        if (cmd->is_background) {
+            add_job(pid1, cmd->argv, 1);
+            add_job(pid2, cmd->pipe_command->argv, 1);
+        } else {
+            waitpid(pid1, NULL, 0);
+            waitpid(pid2, NULL, 0);
+        }
     } else {
         const pid_t pid = fork();
         if (pid == -1) {
@@ -81,8 +88,11 @@ void execute_command(Command *cmd) {
                 exit(EXIT_FAILURE);
             }
         } else {
-            // the parent process
-            waitpid(pid, NULL, 0);
+            if (cmd->is_background) {
+                add_job(pid, cmd->argv, 1);
+            } else {
+                waitpid(pid, NULL, 0);
+            }
         }
     }
 }
