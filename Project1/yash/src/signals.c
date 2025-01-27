@@ -8,7 +8,7 @@ static void handle_sigint(int sig);
 static void handle_sigtstp(int sig);
 static void handle_sigchld(int sig);
 
-void setup_signal_handlers() {
+void setup_signal_handlers(void) {
     signal(SIGINT, handle_sigint);
     signal(SIGTSTP, handle_sigtstp);
     signal(SIGCHLD, handle_sigchld);
@@ -18,7 +18,6 @@ static void handle_sigint(int sig) {
     write(STDOUT_FILENO, "\nyash: SIGINT received\n", 23);
 }
 
-
 static void handle_sigtstp(int sig) {
     write(STDOUT_FILENO, "\nyash: SIGTSTP received\n ", 24);
 }
@@ -26,3 +25,8 @@ static void handle_sigtstp(int sig) {
 static void handle_sigchld(int sig) {
     check_job_statuses();
 }
+
+
+
+
+

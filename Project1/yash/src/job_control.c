@@ -1,5 +1,6 @@
 #include <job_control.h>
 #include <signal.h>
+#include <signals.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -9,19 +10,19 @@
 static Job job_table[MAX_JOBS];
 static int current_job_id = 0; // we will use this to assign job ids
 
-void init_job_table() {
+void init_job_table(void) {
     for (int i = 0; i < MAX_JOBS; i++) {
         job_table[i].job_id = 0;
     }
 }
 
-int add_job(pid_t pid, char **argv, int is_background) {
+int add_job(pid_t pgid, char **argv, int is_background) {
     for (int i = 0; i < MAX_JOBS; i++) {
         if (job_table[i].job_id == 0) {
             current_job_id++;
 
             job_table[i].job_id = current_job_id;
-            job_table[i].pgid = pid;
+            job_table[i].pgid = pgid;
 
             // allocate memory for argv
             int argc = 0;
@@ -61,18 +62,18 @@ int add_job(pid_t pid, char **argv, int is_background) {
     return -1;
 }
 
-void update_job_status(pid_t pid, JobStatus status) {
+void update_job_status(pid_t pgid, JobStatus status) {
     for (int i = 0; i < MAX_JOBS; i++) {
-        if (job_table[i].pgid == pid) {
+        if (job_table[i].pgid == pgid) {
             job_table[i].status = status;
             return;
         }
     }
 }
 
-void remove_job(pid_t pid) {
+void remove_job(pid_t pgid) {
     for (int i = 0; i < MAX_JOBS; i++) {
-        if (job_table[i].pgid == pid) {
+        if (job_table[i].pgid == pgid) {
             if (job_table[i].argv) {
                 for (int j = 0; job_table[i].argv[j] != NULL; j++) {
                     free(job_table[i].argv[j]);
@@ -85,7 +86,7 @@ void remove_job(pid_t pid) {
     }
 }
 
-void check_job_statuses() {
+void check_job_statuses(void) {
     for (int i = 0; i < MAX_JOBS; i++) {
         if (job_table[i].job_id != 0 && job_table[i].status == RUNNING) {
             int status;
@@ -113,7 +114,7 @@ void check_job_statuses() {
 }
 
 
-void list_jobs() {
+void list_jobs(void) {
     int most_recent = 0;
     for (int i = 0; i < MAX_JOBS; i++) {
         if (job_table[i].job_id > most_recent) {
@@ -146,14 +147,14 @@ void list_jobs() {
 
 Job *get_recent_job(int is_background) {
     for (int i = MAX_JOBS - 1; i >= 0; i--) {
-        if (job_table[i].job_id != 0 && job_table[i].is_background == is_background) {
+        if (job_table[i].job_id != 0 && job_table[i].is_background == is_background && job_table[i].status == STOPPED) {
             return &job_table[i];
         }
     }
     return NULL;
 }
 
-int foreground_job() {
+int foreground_job(void) {
     Job *job = get_recent_job(1);
     if (job) {
         update_job_status(job->pgid, RUNNING);
@@ -163,17 +164,22 @@ int foreground_job() {
         }
         printf("\n");
 
-        tcsetpgrp(STDIN_FILENO, job->pgid); // this allows us to do ctrl-c and ctrl-z
-        kill(job->pgid, SIGCONT);
-        waitpid(job->pgid, NULL, 0);
-        tcsetpgrp(STDIN_FILENO, getpid()); // give control back to the shell
+        kill(-job->pgid, SIGCONT);
+
+        int status;
+        waitpid(job->pgid, &status, WUNTRACED);
+        if (WIFSTOPPED(status)) {
+            update_job_status(job->pgid, STOPPED);
+        } else {
+            remove_job(job->pgid);
+        }
 
         return 1;
     }
     return 0;
 }
 
-int background_job() {
+int background_job(void) {
     Job *job = get_recent_job(0);
     if (job) {
         update_job_status(job->pgid, RUNNING);
@@ -183,7 +189,8 @@ int background_job() {
         }
         printf("&\n");
 
-        kill(job->pgid, SIGCONT);
+        kill(-job->pgid, SIGCONT);
+
         return 1;
     }
     return 0;

@@ -4,8 +4,10 @@
 #include <process.h>
 #include <fcntl.h>
 #include <job_control.h>
+#include <signals.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 static int open_for_read(const char *filename);
 static int open_or_create_for_write(const char *filename);
@@ -13,6 +15,11 @@ static void setup_redirections(Command *cmd);
 
 void execute_command(Command *cmd) {
     if (cmd->is_piped && cmd->pipe_command) {
+        if (cmd->is_background) {
+            fprintf(stderr, "yash: background processes with pipes are not supported\n");
+            return;
+        }
+
         int pipe_fds[2];
         if (pipe(pipe_fds) == -1) {
             perror("pipe");
@@ -66,13 +73,14 @@ void execute_command(Command *cmd) {
         close(pipe_fds[0]);
         close(pipe_fds[1]);
 
-        if (cmd->is_background) {
-            add_job(pid1, cmd->argv, 1);
-            add_job(pid2, cmd->pipe_command->argv, 1);
-        } else {
-            waitpid(pid1, NULL, 0);
-            waitpid(pid2, NULL, 0);
+        int status1, status2;
+        waitpid(pid1, &status1, WUNTRACED);
+        waitpid(pid2, &status2, WUNTRACED);
+
+        if (WIFSTOPPED(status1) || WIFSTOPPED(status2)) {
+            // according to lab doc, we don't need to support ctrl z to put pipe into background
         }
+
     } else {
         const pid_t pid = fork();
         if (pid == -1) {
@@ -91,7 +99,13 @@ void execute_command(Command *cmd) {
             if (cmd->is_background) {
                 add_job(pid, cmd->argv, 1);
             } else {
-                waitpid(pid, NULL, 0);
+                int status;
+                waitpid(pid, &status, WUNTRACED);
+
+                if (WIFSTOPPED(status)) {
+                    add_job(pid, cmd->argv, 0);
+                    update_job_status(pid, STOPPED);
+                }
             }
         }
     }
