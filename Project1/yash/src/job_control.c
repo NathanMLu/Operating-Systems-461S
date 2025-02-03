@@ -156,7 +156,7 @@ void list_jobs(void) {
 
 Job *get_recent_job(int is_background) {
     for (int i = MAX_JOBS - 1; i >= 0; i--) {
-        if (job_table[i].job_id != 0 && (job_table[i].is_background == is_background || job_table[i].status == STOPPED)) {
+        if (job_table[i].job_id != 0 && (job_table[i].is_background == is_background || job_table[i].status == STOPPED) && job_table[i].status != DONE) {
             return &job_table[i];
         }
     }
