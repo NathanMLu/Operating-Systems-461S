@@ -126,7 +126,7 @@ void check_job_statuses(void) {
 void list_jobs(void) {
     int most_recent = 0;
     for (int i = 0; i < MAX_JOBS; i++) {
-        if (job_table[i].job_id > most_recent) {
+        if (job_table[i].job_id > most_recent && job_table[i].status == STOPPED) {
             most_recent = job_table[i].job_id;
         }
     }
