@@ -173,6 +173,11 @@ int foreground_job(void) {
         }
         printf("\n");
 
+        signal(SIGINT, SIG_DFL);
+        signal(SIGTSTP, SIG_DFL);
+
+        tcsetpgrp(STDIN_FILENO, job->pgid);
+
         kill(-job->pgid, SIGCONT);
 
         int status;
@@ -182,6 +187,11 @@ int foreground_job(void) {
         } else {
             remove_job(job->pgid);
         }
+
+        tcsetpgrp(STDIN_FILENO, getpid());
+
+        signal(SIGINT, SIG_IGN);
+        signal(SIGTSTP, SIG_IGN);
 
         return 1;
     }

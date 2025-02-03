@@ -127,16 +127,17 @@ void execute_command(Command *cmd) {
 
                 int status;
                 waitpid(pid, &status, WUNTRACED);
+                if (WIFSTOPPED(status)) {
+                    add_job(pid, cmd->argv, 0);
+                    update_job_status(pid, STOPPED);
+                } else {
+                    remove_job(pid);
+                }
 
                 tcsetpgrp(STDIN_FILENO, getpid());
 
                 signal(SIGINT, SIG_IGN);
                 signal(SIGTSTP, SIG_IGN);
-
-                if (WIFSTOPPED(status)) {
-                    add_job(pid, cmd->argv, 0);
-                    update_job_status(pid, STOPPED);
-                }
             }
         }
     }
